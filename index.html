@@ -48,6 +48,9 @@
     .badge-afternoon { background: #fde68a; color: #92400e; }
     .badge-evening { background: #d1d5db; color: #1f2937; }
     .reminder-badge { font-size: 10px; padding: 2px 8px; border-radius: 999px; background: #e0e7ff; color: #3730a3; }
+    .notification-perm-banner { background: #f0f4ff; border: 1px solid #c7d2fe; border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .notification-perm-banner button { background: #4338ca; color: white; padding: 6px 16px; border-radius: 8px; font-weight: 600; font-size: 12px; border: none; cursor: pointer; }
+    .notification-perm-banner button:hover { background: #3730a3; }
   </style>
 </head>
 <body>
@@ -148,11 +151,17 @@
       </div>
     </div>
 
-    <!-- ORDERS PAGE with custom reminder time -->
+    <!-- ORDERS PAGE -->
     <div id="orders" class="page">
       <div class="flex justify-between items-baseline mb-4 mt-1">
         <h2 class="text-2xl font-display font-semibold text-slate-900">Work Orders</h2>
-        <span class="text-[11px] font-bold px-2 py-0.5 rounded" style="background:#e0e7ff; color:#3730a3;">⏰ custom reminder</span>
+        <span class="text-[11px] font-bold px-2 py-0.5 rounded" style="background:#e0e7ff; color:#3730a3;">🔔 external notifications</span>
+      </div>
+
+      <!-- Notification permission banner -->
+      <div id="notif-banner" class="notification-perm-banner hidden">
+        <span class="text-sm font-medium text-slate-700">🔔 Enable browser notifications to get reminders outside the app</span>
+        <button onclick="requestNotificationPermission()">Enable</button>
       </div>
 
       <div class="bg-white p-5 rounded-2xl shadow-[0_4px_16px_rgba(42,33,27,0.05)] border border-slate-100 mb-4 space-y-3">
@@ -166,7 +175,6 @@
             <option value="Evening">🌆 Evening</option>
           </select>
         </div>
-        <!-- NEW: custom reminder date & time -->
         <div class="grid grid-cols-2 gap-2">
           <input id="order-reminder-date" type="date" class="p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-medium">
           <input id="order-reminder-time" type="time" value="09:00" class="p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-medium">
@@ -224,6 +232,72 @@
 <script>
   let db = { products: [], orders: [], settings: { name: 'Amma\'s Catering Service', details: 'Tel: 077 123 4567\nColombo, Sri Lanka' } };
 
+  // ---------- NOTIFICATION PERMISSION ----------
+  function requestNotificationPermission() {
+    if (!('Notification' in window)) {
+      showToast('This browser does not support notifications', 'error');
+      return;
+    }
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        showToast('Notifications enabled! You\'ll get reminders outside the app.', 'success');
+        document.getElementById('notif-banner').classList.add('hidden');
+        // Show a test notification
+        new Notification('🔔 MenuMint Reminders Active', {
+          body: 'You will now receive order reminders even when the app is closed.',
+          icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🍛</text></svg>'
+        });
+      } else {
+        showToast('Notification permission denied. Reminders will only show inside the app.', 'warning');
+      }
+    });
+  }
+
+  function checkNotificationPermission() {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+      document.getElementById('notif-banner').classList.remove('hidden');
+    } else if (Notification.permission === 'granted') {
+      document.getElementById('notif-banner').classList.add('hidden');
+    } else {
+      document.getElementById('notif-banner').classList.add('hidden');
+    }
+  }
+
+  // ---------- EXTERNAL NOTIFICATION ----------
+  function sendExternalNotification(title, body) {
+    if (!('Notification' in window)) {
+      showToast('Notifications not supported', 'error');
+      return false;
+    }
+    if (Notification.permission === 'granted') {
+      try {
+        const notif = new Notification(title, {
+          body: body,
+          icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🍛</text></svg>',
+          tag: 'menu-reminder',
+          requireInteraction: true,
+          silent: false
+        });
+        // Auto-close after 15 seconds
+        setTimeout(() => notif.close(), 15000);
+        return true;
+      } catch (e) {
+        console.error('Notification error:', e);
+        return false;
+      }
+    } else if (Notification.permission === 'default') {
+      // Show the permission banner
+      document.getElementById('notif-banner').classList.remove('hidden');
+      showToast('Please enable notifications for external reminders', 'warning');
+      return false;
+    } else {
+      showToast('Notifications are blocked. Please enable in browser settings.', 'error');
+      return false;
+    }
+  }
+
+  // ---------- TOASTS (same) ----------
   function showToast(message, type = 'default') {
     const stack = document.getElementById('toast-stack');
     const el = document.createElement('div');
@@ -237,6 +311,7 @@
       setTimeout(() => el.remove(), 200);
     }, 2400);
   }
+
   let _confirmResolve = null;
   function askConfirm(message) {
     document.getElementById('confirm-message').textContent = message;
@@ -263,8 +338,10 @@
       document.getElementById('logo-preview').src = db.settings.logo;
       document.getElementById('logo-preview-wrap').classList.remove('hidden');
     }
+    checkNotificationPermission();
     checkReminders();
   }
+
   function saveData() {
     localStorage.setItem('catering_pwa_db', JSON.stringify(db));
     document.getElementById('app-header-title').innerText = db.settings.name || 'Your Catering Business';
@@ -273,6 +350,7 @@
     renderSelectionLists();
     renderOrders();
   }
+
   function updateHeaderLogo() {
     const img = document.getElementById('header-logo');
     const emoji = document.getElementById('header-emoji');
@@ -494,7 +572,7 @@
     } catch (err) { console.error(err); showToast('Error creating PDF — please try again', 'error'); }
   }
 
-  // ---------- ORDERS with custom reminder ----------
+  // ---------- ORDERS with external notification ----------
   function addOrder() {
     const client = document.getElementById('order-client').value.trim();
     const location = document.getElementById('order-location').value.trim();
@@ -508,12 +586,10 @@
       return;
     }
 
-    // Build reminder timestamp if provided, otherwise default to 1 day before at 09:00
     let reminderTimestamp = null;
     if (reminderDate && reminderTime) {
       reminderTimestamp = `${reminderDate}T${reminderTime}:00`;
     } else {
-      // default: 1 day before at 9am
       const d = new Date(date);
       d.setDate(d.getDate() - 1);
       const yr = d.getFullYear();
@@ -522,7 +598,6 @@
       reminderTimestamp = `${yr}-${mo}-${day}T09:00:00`;
     }
 
-    // Validate reminder is not in the past
     const now = new Date();
     const remindTime = new Date(reminderTimestamp);
     if (remindTime < now) {
@@ -534,9 +609,9 @@
       id: Date.now(),
       client,
       location,
-      date,   // work date
+      date,
       shift,
-      reminderTimestamp, // ISO string with time
+      reminderTimestamp,
       reminded: false,
       createdAt: new Date().toISOString()
     };
@@ -588,7 +663,7 @@
     }).join('');
   }
 
-  // ---------- REMINDER SYSTEM with custom timestamps ----------
+  // ---------- REMINDER SYSTEM with EXTERNAL NOTIFICATIONS ----------
   function checkReminders() {
     if(!db.orders || db.orders.length === 0) return;
     const now = new Date();
@@ -598,10 +673,19 @@
       if (!order.reminderTimestamp) return;
 
       const remindTime = new Date(order.reminderTimestamp);
-      // If reminder time has passed, fire notification
       if (now >= remindTime) {
-        const msg = `⏰ REMINDER: "${order.client}" on ${order.date} (${order.shift}) at ${order.location}`;
-        showToast(msg, 'success');
+        // EXTERNAL NOTIFICATION (outside the app)
+        const title = `🔔 MenuMint Reminder: ${order.client}`;
+        const body = `📅 ${order.date} (${order.shift})\n📍 ${order.location}`;
+        
+        // Try external notification first
+        const sent = sendExternalNotification(title, body);
+        
+        // Also show internal toast as backup
+        if (!sent) {
+          showToast(`⏰ REMINDER: "${order.client}" on ${order.date} (${order.shift}) at ${order.location}`, 'success');
+        }
+        
         order.reminded = true;
         saveData();
       }
@@ -627,6 +711,7 @@
   window.deleteOrder = deleteOrder;
   window.closeConfirm = closeConfirm;
   window.askConfirm = askConfirm;
+  window.requestNotificationPermission = requestNotificationPermission;
 </script>
 </body>
 </html>
