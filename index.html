@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
   <title>MenuMint · Orders</title>
+  <!-- App Icon: SVG data URI for favicon + home screen -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23C1440E'/><text x='50' y='68' font-size='48' text-anchor='middle' fill='white'>🍛</text></svg>">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><rect width='200' height='200' rx='40' fill='%23C1440E'/><text x='100' y='136' font-size='96' text-anchor='middle' fill='white'>🍛</text></svg>">
+  <meta name="theme-color" content="#C1440E">
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -47,7 +51,6 @@
     .badge-morning { background: #fef3c7; color: #92400e; }
     .badge-afternoon { background: #fde68a; color: #92400e; }
     .badge-evening { background: #d1d5db; color: #1f2937; }
-    .reminder-badge { font-size: 10px; padding: 2px 8px; border-radius: 999px; background: #e0e7ff; color: #3730a3; }
     .notification-perm-banner { background: #f0f4ff; border: 1px solid #c7d2fe; border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .notification-perm-banner button { background: #4338ca; color: white; padding: 6px 16px; border-radius: 8px; font-weight: 600; font-size: 12px; border: none; cursor: pointer; }
     .notification-perm-banner button:hover { background: #3730a3; }
@@ -151,14 +154,13 @@
       </div>
     </div>
 
-    <!-- ORDERS PAGE -->
+    <!-- ORDERS -->
     <div id="orders" class="page">
       <div class="flex justify-between items-baseline mb-4 mt-1">
         <h2 class="text-2xl font-display font-semibold text-slate-900">Work Orders</h2>
         <span class="text-[11px] font-bold px-2 py-0.5 rounded" style="background:#e0e7ff; color:#3730a3;">🔔 external notifications</span>
       </div>
 
-      <!-- Notification permission banner -->
       <div id="notif-banner" class="notification-perm-banner hidden">
         <span class="text-sm font-medium text-slate-700">🔔 Enable browser notifications to get reminders outside the app</span>
         <button onclick="requestNotificationPermission()">Enable</button>
@@ -232,7 +234,6 @@
 <script>
   let db = { products: [], orders: [], settings: { name: 'Amma\'s Catering Service', details: 'Tel: 077 123 4567\nColombo, Sri Lanka' } };
 
-  // ---------- NOTIFICATION PERMISSION ----------
   function requestNotificationPermission() {
     if (!('Notification' in window)) {
       showToast('This browser does not support notifications', 'error');
@@ -242,10 +243,9 @@
       if (permission === 'granted') {
         showToast('Notifications enabled! You\'ll get reminders outside the app.', 'success');
         document.getElementById('notif-banner').classList.add('hidden');
-        // Show a test notification
         new Notification('🔔 MenuMint Reminders Active', {
           body: 'You will now receive order reminders even when the app is closed.',
-          icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🍛</text></svg>'
+          icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="%23C1440E"/><text x="50" y="68" font-size="48" text-anchor="middle" fill="white">🍛</text></svg>'
         });
       } else {
         showToast('Notification permission denied. Reminders will only show inside the app.', 'warning');
@@ -257,14 +257,11 @@
     if (!('Notification' in window)) return;
     if (Notification.permission === 'default') {
       document.getElementById('notif-banner').classList.remove('hidden');
-    } else if (Notification.permission === 'granted') {
-      document.getElementById('notif-banner').classList.add('hidden');
     } else {
       document.getElementById('notif-banner').classList.add('hidden');
     }
   }
 
-  // ---------- EXTERNAL NOTIFICATION ----------
   function sendExternalNotification(title, body) {
     if (!('Notification' in window)) {
       showToast('Notifications not supported', 'error');
@@ -274,12 +271,11 @@
       try {
         const notif = new Notification(title, {
           body: body,
-          icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🍛</text></svg>',
+          icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="%23C1440E"/><text x="50" y="68" font-size="48" text-anchor="middle" fill="white">🍛</text></svg>',
           tag: 'menu-reminder',
           requireInteraction: true,
           silent: false
         });
-        // Auto-close after 15 seconds
         setTimeout(() => notif.close(), 15000);
         return true;
       } catch (e) {
@@ -287,7 +283,6 @@
         return false;
       }
     } else if (Notification.permission === 'default') {
-      // Show the permission banner
       document.getElementById('notif-banner').classList.remove('hidden');
       showToast('Please enable notifications for external reminders', 'warning');
       return false;
@@ -297,7 +292,6 @@
     }
   }
 
-  // ---------- TOASTS (same) ----------
   function showToast(message, type = 'default') {
     const stack = document.getElementById('toast-stack');
     const el = document.createElement('div');
@@ -572,7 +566,7 @@
     } catch (err) { console.error(err); showToast('Error creating PDF — please try again', 'error'); }
   }
 
-  // ---------- ORDERS with external notification ----------
+  // ---------- ORDERS ----------
   function addOrder() {
     const client = document.getElementById('order-client').value.trim();
     const location = document.getElementById('order-location').value.trim();
@@ -663,7 +657,7 @@
     }).join('');
   }
 
-  // ---------- REMINDER SYSTEM with EXTERNAL NOTIFICATIONS ----------
+  // ---------- REMINDER CHECK ----------
   function checkReminders() {
     if(!db.orders || db.orders.length === 0) return;
     const now = new Date();
@@ -674,14 +668,10 @@
 
       const remindTime = new Date(order.reminderTimestamp);
       if (now >= remindTime) {
-        // EXTERNAL NOTIFICATION (outside the app)
         const title = `🔔 MenuMint Reminder: ${order.client}`;
         const body = `📅 ${order.date} (${order.shift})\n📍 ${order.location}`;
         
-        // Try external notification first
         const sent = sendExternalNotification(title, body);
-        
-        // Also show internal toast as backup
         if (!sent) {
           showToast(`⏰ REMINDER: "${order.client}" on ${order.date} (${order.shift}) at ${order.location}`, 'success');
         }
@@ -692,12 +682,9 @@
     });
   }
 
-  // Check every 30 seconds
   setInterval(checkReminders, 30000);
-
   window.onload = loadData;
 
-  // Expose functions globally
   window.switchPage = switchPage;
   window.addProduct = addProduct;
   window.deleteProduct = deleteProduct;
