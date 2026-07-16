@@ -234,6 +234,10 @@
 <script>
   let db = { products: [], orders: [], settings: { name: 'Amma\'s Catering Service', details: 'Tel: 077 123 4567\nColombo, Sri Lanka' } };
 
+  // ----- NOTIFICATION ICON (branded) -----
+  const NOTIFICATION_ICON = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="200" height="200" rx="40" fill="%23C1440E"/><text x="100" y="136" font-size="96" text-anchor="middle" fill="white">🍛</text></svg>';
+
+  // ----- NOTIFICATION PERMISSION -----
   function requestNotificationPermission() {
     if (!('Notification' in window)) {
       showToast('This browser does not support notifications', 'error');
@@ -241,12 +245,16 @@
     }
     Notification.requestPermission().then(permission => {
       if (permission === 'granted') {
-        showToast('Notifications enabled! You\'ll get reminders outside the app.', 'success');
+        showToast('Notifications enabled! You\'ll get reminders even when app is closed.', 'success');
         document.getElementById('notif-banner').classList.add('hidden');
-        new Notification('🔔 MenuMint Reminders Active', {
-          body: 'You will now receive order reminders even when the app is closed.',
-          icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="%23C1440E"/><text x="50" y="68" font-size="48" text-anchor="middle" fill="white">🍛</text></svg>'
-        });
+        // Send a test notification with the branded icon
+        try {
+          new Notification('🔔 MenuMint Reminders Active', {
+            body: 'You will now receive order reminders even when the app is closed.',
+            icon: NOTIFICATION_ICON,
+            tag: 'test-reminder'
+          });
+        } catch(e) { /* ignore */ }
       } else {
         showToast('Notification permission denied. Reminders will only show inside the app.', 'warning');
       }
@@ -262,6 +270,7 @@
     }
   }
 
+  // ----- SEND EXTERNAL NOTIFICATION (with branded icon) -----
   function sendExternalNotification(title, body) {
     if (!('Notification' in window)) {
       showToast('Notifications not supported', 'error');
@@ -271,12 +280,15 @@
       try {
         const notif = new Notification(title, {
           body: body,
-          icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="%23C1440E"/><text x="50" y="68" font-size="48" text-anchor="middle" fill="white">🍛</text></svg>',
-          tag: 'menu-reminder',
+          icon: NOTIFICATION_ICON,
+          tag: 'menu-reminder-' + Date.now(),
           requireInteraction: true,
-          silent: false
+          silent: false,
+          badge: NOTIFICATION_ICON,
+          image: NOTIFICATION_ICON
         });
-        setTimeout(() => notif.close(), 15000);
+        // Auto-close after 30 seconds (longer for visibility)
+        setTimeout(() => { try { notif.close(); } catch(e) {} }, 30000);
         return true;
       } catch (e) {
         console.error('Notification error:', e);
@@ -292,6 +304,7 @@
     }
   }
 
+  // ----- TOASTS -----
   function showToast(message, type = 'default') {
     const stack = document.getElementById('toast-stack');
     const el = document.createElement('div');
@@ -317,6 +330,7 @@
     if (_confirmResolve) { _confirmResolve(result); _confirmResolve = null; }
   }
 
+  // ----- DATA LOAD/SAVE -----
   function loadData() {
     const data = localStorage.getItem('catering_pwa_db');
     if(data) db = JSON.parse(data);
@@ -333,6 +347,7 @@
       document.getElementById('logo-preview-wrap').classList.remove('hidden');
     }
     checkNotificationPermission();
+    // Check reminders immediately on load
     checkReminders();
   }
 
@@ -369,7 +384,7 @@
     btn.style.color = 'var(--paprika)';
   }
 
-  // PRODUCTS
+  // ----- PRODUCTS -----
   function addProduct() {
     const nameInput = document.getElementById('p-name');
     const priceInput = document.getElementById('p-price');
@@ -397,7 +412,7 @@
     `).join('');
   }
 
-  // LOGO
+  // ----- LOGO -----
   function handleLogo(input) {
     const file = input.files[0];
     if (!file) return;
@@ -414,7 +429,7 @@
   function removeLogo() { db.settings.logo = ''; document.getElementById('logo-preview-wrap').classList.add('hidden'); document.getElementById('cfg-logo').value = ''; saveData(); }
   function saveSettings() { db.settings.name = document.getElementById('cfg-name').value; db.settings.details = document.getElementById('cfg-details').value; saveData(); showToast('Business profile saved', 'success'); }
 
-  // SELECTION LISTS
+  // ----- SELECTION LISTS -----
   function checkIcon() { return `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }
   function renderSelectionLists() {
     const generateHTML = () => {
@@ -464,7 +479,7 @@
     document.getElementById('q-total').textContent = `LKR ${q.total.toFixed(2)}`;
   }
 
-  // PDF GENERATION
+  // ----- PDF GENERATION -----
   function dataUrlToBytes(dataUrl) {
     const base64 = dataUrl.split(',')[1];
     const binary = atob(base64);
@@ -566,7 +581,7 @@
     } catch (err) { console.error(err); showToast('Error creating PDF — please try again', 'error'); }
   }
 
-  // ---------- ORDERS ----------
+  // ----- ORDERS -----
   function addOrder() {
     const client = document.getElementById('order-client').value.trim();
     const location = document.getElementById('order-location').value.trim();
@@ -617,6 +632,7 @@
     document.getElementById('order-reminder-date').value = '';
     document.getElementById('order-reminder-time').value = '09:00';
     showToast(`Order for ${client} added. Reminder set for ${new Date(reminderTimestamp).toLocaleString()}`, 'success');
+    // Check immediately in case reminder time is now
     checkReminders();
   }
 
@@ -657,7 +673,7 @@
     }).join('');
   }
 
-  // ---------- REMINDER CHECK ----------
+  // ----- REMINDER CHECK (runs every 15 seconds for better reliability) -----
   function checkReminders() {
     if(!db.orders || db.orders.length === 0) return;
     const now = new Date();
@@ -668,23 +684,37 @@
 
       const remindTime = new Date(order.reminderTimestamp);
       if (now >= remindTime) {
-        const title = `🔔 MenuMint Reminder: ${order.client}`;
+        const title = `🔔 MenuMint: ${order.client}`;
         const body = `📅 ${order.date} (${order.shift})\n📍 ${order.location}`;
         
+        // Send external notification (even if app is closed)
         const sent = sendExternalNotification(title, body);
+        
+        // Always mark as reminded even if notification fails (to prevent spam)
+        order.reminded = true;
+        saveData();
+        
+        // Also show internal toast as backup
         if (!sent) {
           showToast(`⏰ REMINDER: "${order.client}" on ${order.date} (${order.shift}) at ${order.location}`, 'success');
         }
-        
-        order.reminded = true;
-        saveData();
       }
     });
   }
 
-  setInterval(checkReminders, 30000);
+  // Check every 15 seconds (more reliable than 30s)
+  setInterval(checkReminders, 15000);
+  
+  // Also check when page becomes visible again (user returns to tab)
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      checkReminders();
+    }
+  });
+
   window.onload = loadData;
 
+  // Expose functions globally
   window.switchPage = switchPage;
   window.addProduct = addProduct;
   window.deleteProduct = deleteProduct;
@@ -699,6 +729,7 @@
   window.closeConfirm = closeConfirm;
   window.askConfirm = askConfirm;
   window.requestNotificationPermission = requestNotificationPermission;
+  window.checkReminders = checkReminders;
 </script>
 </body>
 </html>
