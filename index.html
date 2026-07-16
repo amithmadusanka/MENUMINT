@@ -4,15 +4,28 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
   <title>MenuMint · Orders</title>
-  <!-- App Icon: SVG data URI for favicon + home screen -->
+  <!-- App Icon -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23C1440E'/><text x='50' y='68' font-size='48' text-anchor='middle' fill='white'>🍛</text></svg>">
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><rect width='200' height='200' rx='40' fill='%23C1440E'/><text x='100' y='136' font-size='96' text-anchor='middle' fill='white'>🍛</text></svg>">
   <meta name="theme-color" content="#C1440E">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('SW registered:', reg))
+        .catch(err => console.log('SW registration failed:', err));
+    }
+  </script>
+
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,650;1,9..144,500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
   <style>
     :root { --clay: #FBF6EE; --ink: #2A211B; --paprika: #C1440E; --paprika-dark: #9B360A; --turmeric: #D4A017; --curry-leaf: #45573E; --card: #FFFFFF; --line: #EAE1D2; }
     * { font-family: 'Inter', sans-serif; }
@@ -54,6 +67,8 @@
     .notification-perm-banner { background: #f0f4ff; border: 1px solid #c7d2fe; border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .notification-perm-banner button { background: #4338ca; color: white; padding: 6px 16px; border-radius: 8px; font-weight: 600; font-size: 12px; border: none; cursor: pointer; }
     .notification-perm-banner button:hover { background: #3730a3; }
+    .offline-badge { background: #dc2626; color: white; padding: 2px 10px; border-radius: 999px; font-size: 10px; font-weight: 700; }
+    .online-badge { background: #16a34a; color: white; padding: 2px 10px; border-radius: 999px; font-size: 10px; font-weight: 700; }
   </style>
 </head>
 <body>
@@ -81,7 +96,10 @@
         <p class="text-[11px] text-white/70 font-medium leading-tight">Invoices &amp; orders</p>
       </div>
     </div>
-    <span class="bg-white/15 text-white text-[11px] px-2.5 py-1 rounded-full font-semibold backdrop-blur-sm">Offline</span>
+    <div class="flex items-center gap-2">
+      <span id="online-status" class="online-badge">● Online</span>
+      <span class="bg-white/15 text-white text-[11px] px-2.5 py-1 rounded-full font-semibold backdrop-blur-sm">Offline</span>
+    </div>
   </div>
   <div class="scallop-edge"></div>
 </header>
@@ -158,11 +176,11 @@
     <div id="orders" class="page">
       <div class="flex justify-between items-baseline mb-4 mt-1">
         <h2 class="text-2xl font-display font-semibold text-slate-900">Work Orders</h2>
-        <span class="text-[11px] font-bold px-2 py-0.5 rounded" style="background:#e0e7ff; color:#3730a3;">🔔 external notifications</span>
+        <span class="text-[11px] font-bold px-2 py-0.5 rounded" style="background:#e0e7ff; color:#3730a3;">🔔 offline notifications</span>
       </div>
 
       <div id="notif-banner" class="notification-perm-banner hidden">
-        <span class="text-sm font-medium text-slate-700">🔔 Enable browser notifications to get reminders outside the app</span>
+        <span class="text-sm font-medium text-slate-700">🔔 Enable notifications for offline reminders</span>
         <button onclick="requestNotificationPermission()">Enable</button>
       </div>
 
@@ -234,7 +252,21 @@
 <script>
   let db = { products: [], orders: [], settings: { name: 'Amma\'s Catering Service', details: 'Tel: 077 123 4567\nColombo, Sri Lanka' } };
 
-  // ----- NOTIFICATION ICON (branded) -----
+  // ----- OFFLINE STATUS -----
+  function updateOnlineStatus() {
+    const statusEl = document.getElementById('online-status');
+    if (navigator.onLine) {
+      statusEl.textContent = '● Online';
+      statusEl.className = 'online-badge';
+    } else {
+      statusEl.textContent = '● Offline';
+      statusEl.className = 'offline-badge';
+    }
+  }
+  window.addEventListener('online', updateOnlineStatus);
+  window.addEventListener('offline', updateOnlineStatus);
+
+  // ----- NOTIFICATION ICON -----
   const NOTIFICATION_ICON = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="200" height="200" rx="40" fill="%23C1440E"/><text x="100" y="136" font-size="96" text-anchor="middle" fill="white">🍛</text></svg>';
 
   // ----- NOTIFICATION PERMISSION -----
@@ -245,18 +277,17 @@
     }
     Notification.requestPermission().then(permission => {
       if (permission === 'granted') {
-        showToast('Notifications enabled! You\'ll get reminders even when app is closed.', 'success');
+        showToast('Notifications enabled! You\'ll get reminders offline.', 'success');
         document.getElementById('notif-banner').classList.add('hidden');
-        // Send a test notification with the branded icon
         try {
-          new Notification('🔔 MenuMint Reminders Active', {
-            body: 'You will now receive order reminders even when the app is closed.',
+          new Notification('🔔 MenuMint Ready', {
+            body: 'You will receive order reminders even when offline.',
             icon: NOTIFICATION_ICON,
             tag: 'test-reminder'
           });
         } catch(e) { /* ignore */ }
       } else {
-        showToast('Notification permission denied. Reminders will only show inside the app.', 'warning');
+        showToast('Notification permission denied.', 'warning');
       }
     });
   }
@@ -270,10 +301,9 @@
     }
   }
 
-  // ----- SEND EXTERNAL NOTIFICATION (with branded icon) -----
+  // ----- SEND EXTERNAL NOTIFICATION (works offline) -----
   function sendExternalNotification(title, body) {
     if (!('Notification' in window)) {
-      showToast('Notifications not supported', 'error');
       return false;
     }
     if (Notification.permission === 'granted') {
@@ -284,10 +314,8 @@
           tag: 'menu-reminder-' + Date.now(),
           requireInteraction: true,
           silent: false,
-          badge: NOTIFICATION_ICON,
-          image: NOTIFICATION_ICON
+          badge: NOTIFICATION_ICON
         });
-        // Auto-close after 30 seconds (longer for visibility)
         setTimeout(() => { try { notif.close(); } catch(e) {} }, 30000);
         return true;
       } catch (e) {
@@ -296,12 +324,9 @@
       }
     } else if (Notification.permission === 'default') {
       document.getElementById('notif-banner').classList.remove('hidden');
-      showToast('Please enable notifications for external reminders', 'warning');
-      return false;
-    } else {
-      showToast('Notifications are blocked. Please enable in browser settings.', 'error');
       return false;
     }
+    return false;
   }
 
   // ----- TOASTS -----
@@ -330,29 +355,45 @@
     if (_confirmResolve) { _confirmResolve(result); _confirmResolve = null; }
   }
 
-  // ----- DATA LOAD/SAVE -----
+  // ----- DATA PERSISTENCE (LocalStorage - works offline) -----
   function loadData() {
-    const data = localStorage.getItem('catering_pwa_db');
-    if(data) db = JSON.parse(data);
-    if(!db.orders) db.orders = [];
+    try {
+      const data = localStorage.getItem('catering_pwa_db');
+      if(data) {
+        db = JSON.parse(data);
+        // Ensure orders array exists
+        if(!db.orders) db.orders = [];
+        if(!db.products) db.products = [];
+        if(!db.settings) db.settings = { name: 'Amma\'s Catering Service', details: 'Tel: 077 123 4567\nColombo, Sri Lanka' };
+      }
+    } catch(e) {
+      console.error('Failed to load data:', e);
+    }
+    
     document.getElementById('app-header-title').innerText = db.settings.name || 'Your Catering Business';
     updateHeaderLogo();
     renderProducts();
     renderSelectionLists();
     renderOrders();
-    document.getElementById('cfg-name').value = db.settings.name;
-    document.getElementById('cfg-details').value = db.settings.details;
+    document.getElementById('cfg-name').value = db.settings.name || '';
+    document.getElementById('cfg-details').value = db.settings.details || '';
     if(db.settings.logo) {
       document.getElementById('logo-preview').src = db.settings.logo;
       document.getElementById('logo-preview-wrap').classList.remove('hidden');
     }
     checkNotificationPermission();
-    // Check reminders immediately on load
+    updateOnlineStatus();
+    // Check reminders immediately
     checkReminders();
   }
 
   function saveData() {
-    localStorage.setItem('catering_pwa_db', JSON.stringify(db));
+    try {
+      localStorage.setItem('catering_pwa_db', JSON.stringify(db));
+    } catch(e) {
+      console.error('Failed to save data:', e);
+      showToast('Failed to save data to device', 'error');
+    }
     document.getElementById('app-header-title').innerText = db.settings.name || 'Your Catering Business';
     updateHeaderLogo();
     renderProducts();
@@ -403,7 +444,10 @@
   }
   function renderProducts() {
     const container = document.getElementById('saved-products');
-    if(db.products.length === 0) { container.innerHTML = `<div class="text-center py-6"><p class="text-2xl mb-1">🍽️</p><p class="text-slate-400 text-xs font-medium">Your menu is empty — add your first item above.</p></div>`; return; }
+    if(!db.products || db.products.length === 0) {
+      container.innerHTML = `<div class="text-center py-6"><p class="text-2xl mb-1">🍽️</p><p class="text-slate-400 text-xs font-medium">Your menu is empty — add your first item above.</p></div>`;
+      return;
+    }
     container.innerHTML = db.products.map(p => `
       <div class="flex justify-between items-center py-3">
         <div><p class="font-semibold text-sm text-slate-800">${p.name}</p><p class="text-xs font-bold" style="color:var(--paprika)">LKR ${p.price.toFixed(2)}</p></div>
@@ -433,7 +477,7 @@
   function checkIcon() { return `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }
   function renderSelectionLists() {
     const generateHTML = () => {
-      if(db.products.length === 0) return `<div class="text-center py-6"><p class="text-slate-400 text-xs font-medium">Add items in the Products tab first.</p></div>`;
+      if(!db.products || db.products.length === 0) return `<div class="text-center py-6"><p class="text-slate-400 text-xs font-medium">Add items in the Products tab first.</p></div>`;
       return db.products.map(p => `
         <div class="item-card flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 cursor-pointer" data-id="${p.id}" onclick="toggleItem(this)">
           <div class="flex items-center space-x-3 flex-1">
@@ -479,7 +523,7 @@
     document.getElementById('q-total').textContent = `LKR ${q.total.toFixed(2)}`;
   }
 
-  // ----- PDF GENERATION -----
+  // ----- PDF GENERATION (fully offline) -----
   function dataUrlToBytes(dataUrl) {
     const base64 = dataUrl.split(',')[1];
     const binary = atob(base64);
@@ -632,7 +676,6 @@
     document.getElementById('order-reminder-date').value = '';
     document.getElementById('order-reminder-time').value = '09:00';
     showToast(`Order for ${client} added. Reminder set for ${new Date(reminderTimestamp).toLocaleString()}`, 'success');
-    // Check immediately in case reminder time is now
     checkReminders();
   }
 
@@ -673,7 +716,7 @@
     }).join('');
   }
 
-  // ----- REMINDER CHECK (runs every 15 seconds for better reliability) -----
+  // ----- REMINDER CHECK (runs every 10 seconds for reliability) -----
   function checkReminders() {
     if(!db.orders || db.orders.length === 0) return;
     const now = new Date();
@@ -687,14 +730,14 @@
         const title = `🔔 MenuMint: ${order.client}`;
         const body = `📅 ${order.date} (${order.shift})\n📍 ${order.location}`;
         
-        // Send external notification (even if app is closed)
+        // Send external notification (works offline)
         const sent = sendExternalNotification(title, body);
         
-        // Always mark as reminded even if notification fails (to prevent spam)
+        // Mark as reminded
         order.reminded = true;
         saveData();
         
-        // Also show internal toast as backup
+        // Show internal toast as backup
         if (!sent) {
           showToast(`⏰ REMINDER: "${order.client}" on ${order.date} (${order.shift}) at ${order.location}`, 'success');
         }
@@ -702,16 +745,17 @@
     });
   }
 
-  // Check every 15 seconds (more reliable than 30s)
-  setInterval(checkReminders, 15000);
+  // Check every 10 seconds for better reliability
+  setInterval(checkReminders, 10000);
   
-  // Also check when page becomes visible again (user returns to tab)
+  // Also check when page becomes visible again
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       checkReminders();
     }
   });
 
+  // Initial load
   window.onload = loadData;
 
   // Expose functions globally
