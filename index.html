@@ -4,95 +4,54 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
   <title>MenuMint · Orders</title>
-  <!-- Tailwind + fonts + pdf-lib (same as original) -->
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,650;1,9..144,500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <!-- custom styles (inline) -->
   <style>
-    :root {
-      --clay: #FBF6EE;       --ink: #2A211B;
-      --paprika: #C1440E;    --paprika-dark: #9B360A;
-      --turmeric: #D4A017;   --curry-leaf: #45573E;
-      --card: #FFFFFF;       --line: #EAE1D2;
-    }
+    :root { --clay: #FBF6EE; --ink: #2A211B; --paprika: #C1440E; --paprika-dark: #9B360A; --turmeric: #D4A017; --curry-leaf: #45573E; --card: #FFFFFF; --line: #EAE1D2; }
     * { font-family: 'Inter', sans-serif; }
     .font-display { font-family: 'Fraunces', serif; font-optical-sizing: auto; }
     body { background: var(--clay); color: var(--ink); }
-
-    /* page-stage same as original: right-to-left sweep */
     #page-stage { display: grid; overflow: hidden; }
-    #page-stage > .page {
-      grid-area: 1 / 1;
-      transform: translateX(110%);
-      z-index: 1;
-      transition: transform .42s cubic-bezier(.65,0,.35,1);
-    }
+    #page-stage > .page { grid-area: 1 / 1; transform: translateX(110%); z-index: 1; transition: transform .42s cubic-bezier(.65,0,.35,1); }
     #page-stage > .page.active-page { transform: translateX(0); z-index: 2; }
     #page-stage > .page.off-left { transform: translateX(-110%); z-index: 1; }
     #page-stage > .page.no-transition { transition: none !important; }
-
-    .scallop-edge {
-      height: 14px;
-      background: var(--clay);
-      -webkit-mask-image: radial-gradient(circle at 10px 0, transparent 9px, black 9.5px);
-      -webkit-mask-size: 20px 14px;
-      mask-image: radial-gradient(circle at 10px 0, transparent 9px, black 9.5px);
-      mask-size: 20px 14px;
-      mask-repeat: repeat-x;
-      margin-top: -1px;
-    }
+    .scallop-edge { height: 14px; background: var(--clay); -webkit-mask-image: radial-gradient(circle at 10px 0, transparent 9px, black 9.5px); -webkit-mask-size: 20px 14px; mask-image: radial-gradient(circle at 10px 0, transparent 9px, black 9.5px); mask-size: 20px 14px; mask-repeat: repeat-x; margin-top: -1px; }
     .nav-btn { position: relative; }
-    .nav-pill {
-      position: absolute; top: -6px; left: 50%; width: 32px; height: 3px;
-      background: var(--paprika); border-radius: 99px; transform: translateX(-50%) scaleX(0);
-      transition: transform .25s cubic-bezier(.34,1.56,.64,1);
-    }
+    .nav-pill { position: absolute; top: -6px; left: 50%; width: 32px; height: 3px; background: var(--paprika); border-radius: 99px; transform: translateX(-50%) scaleX(0); transition: transform .25s cubic-bezier(.34,1.56,.64,1); }
     .nav-btn.active .nav-pill { transform: translateX(-50%) scaleX(1); }
-
     .item-card { transition: border-color .15s ease, background .15s ease; }
     .item-card.selected { border-color: var(--paprika); background: #FDF3ED; }
-    .check-dot {
-      width: 20px; height: 20px; border-radius: 999px; border: 2px solid #D8CBB8;
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-      transition: all .15s ease;
-    }
+    .check-dot { width: 20px; height: 20px; border-radius: 999px; border: 2px solid #D8CBB8; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .15s ease; }
     .item-card.selected .check-dot { background: var(--paprika); border-color: var(--paprika); }
     .check-dot svg { opacity: 0; transform: scale(.5); transition: all .15s ease; }
     .item-card.selected .check-dot svg { opacity: 1; transform: scale(1); }
-
     .stepper-btn { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-weight: 700; }
-
-    /* toasts & confirm sheet (original) */
     #toast-stack { position: fixed; top: 14px; left: 0; right: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
     .toast { pointer-events: auto; max-width: 340px; width: calc(100% - 32px); background: var(--ink); color: #FBF6EE; font-size: 13px; font-weight: 600; padding: 12px 16px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.18); display: flex; align-items: center; gap: 8px; animation: toastIn .25s cubic-bezier(.16,1,.3,1); }
     .toast.error { background: var(--paprika-dark); }
     .toast.success { background: var(--curry-leaf); }
+    .toast.warning { background: #b45309; }
     @keyframes toastIn { from { opacity: 0; transform: translateY(-12px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
-
     #confirm-backdrop { position: fixed; inset: 0; background: rgba(42,33,27,.45); backdrop-filter: blur(2px); z-index: 90; display: none; align-items: flex-end; justify-content: center; }
     #confirm-backdrop.active { display: flex; }
     #confirm-sheet { background: var(--card); width: 100%; max-width: 420px; border-radius: 20px 20px 0 0; padding: 22px 20px calc(22px + env(safe-area-inset-bottom)); animation: sheetUp .25s cubic-bezier(.16,1,.3,1); }
     @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-
     input:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(193,68,14,.12); }
     ::selection { background: rgba(193,68,14,.18); }
-
-    /* order card */
     .order-card { transition: all 0.1s ease; }
     .order-card:active { transform: scale(0.98); }
     .badge-morning { background: #fef3c7; color: #92400e; }
     .badge-afternoon { background: #fde68a; color: #92400e; }
     .badge-evening { background: #d1d5db; color: #1f2937; }
+    .reminder-badge { font-size: 10px; padding: 2px 8px; border-radius: 999px; background: #e0e7ff; color: #3730a3; }
   </style>
 </head>
-<body class="antialiased">
-
+<body>
 <div id="toast-stack"></div>
-
-<!-- Confirm Sheet -->
 <div id="confirm-backdrop" onclick="if(event.target===this) closeConfirm(false)">
   <div id="confirm-sheet">
     <p id="confirm-message" class="text-sm font-semibold text-slate-800 mb-4"></p>
@@ -103,7 +62,6 @@
   </div>
 </div>
 
-<!-- HEADER (same as original) -->
 <header class="sticky top-0 z-40" style="background: linear-gradient(135deg, var(--paprika), var(--paprika-dark));">
   <div class="px-4 py-4 flex justify-between items-center">
     <div class="flex items-center space-x-2.5">
@@ -122,7 +80,6 @@
   <div class="scallop-edge"></div>
 </header>
 
-<!-- BOTTOM NAV (5 tabs: added "Orders") -->
 <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 shadow-[0_-6px_24px_rgba(0,0,0,0.06)] z-50 flex justify-around py-2.5 px-2" style="padding-bottom: calc(10px + env(safe-area-inset-bottom));">
   <button onclick="switchPage('invoice', this)" class="nav-btn active flex flex-col items-center px-3 py-1" style="color: var(--paprika)">
     <span class="nav-pill"></span>
@@ -151,11 +108,9 @@
   </button>
 </nav>
 
-<!-- MAIN -->
 <main class="p-4 mb-28 max-w-md mx-auto">
   <div id="page-stage">
-
-    <!-- ========= INVOICE PAGE (original) ========= -->
+    <!-- INVOICE -->
     <div id="invoice" class="page active-page">
       <div class="flex justify-between items-baseline mb-4 mt-1">
         <h2 class="text-2xl font-display font-semibold text-slate-900">Create Invoice</h2>
@@ -174,7 +129,7 @@
       </div>
     </div>
 
-    <!-- ========= QUOTATION PAGE (original) ========= -->
+    <!-- QUOTATION -->
     <div id="quotation" class="page">
       <div class="flex justify-between items-baseline mb-4 mt-1">
         <h2 class="text-2xl font-display font-semibold text-slate-900">Create Quotation</h2>
@@ -193,36 +148,40 @@
       </div>
     </div>
 
-    <!-- ========= ORDERS PAGE (NEW) ========= -->
+    <!-- ORDERS PAGE with custom reminder time -->
     <div id="orders" class="page">
       <div class="flex justify-between items-baseline mb-4 mt-1">
         <h2 class="text-2xl font-display font-semibold text-slate-900">Work Orders</h2>
-        <span class="text-[11px] font-bold px-2 py-0.5 rounded" style="background:#e0e7ff; color:#3730a3;">📅 reminder</span>
+        <span class="text-[11px] font-bold px-2 py-0.5 rounded" style="background:#e0e7ff; color:#3730a3;">⏰ custom reminder</span>
       </div>
 
-      <!-- add order form -->
       <div class="bg-white p-5 rounded-2xl shadow-[0_4px_16px_rgba(42,33,27,0.05)] border border-slate-100 mb-4 space-y-3">
         <input id="order-client" type="text" placeholder="Client / event name" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-medium">
         <input id="order-location" type="text" placeholder="Location (e.g. Colombo 7)" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-medium">
         <input id="order-date" type="date" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-medium">
         <div class="flex gap-2">
-          <select id="order-shift" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-medium">
+          <select id="order-shift" class="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-medium">
             <option value="Morning">🌅 Morning</option>
             <option value="Afternoon">☀️ Afternoon</option>
             <option value="Evening">🌆 Evening</option>
           </select>
         </div>
+        <!-- NEW: custom reminder date & time -->
+        <div class="grid grid-cols-2 gap-2">
+          <input id="order-reminder-date" type="date" class="p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-medium">
+          <input id="order-reminder-time" type="time" value="09:00" class="p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-medium">
+        </div>
+        <p class="text-[10px] text-slate-400 -mt-1">⏰ Reminder will fire at this date &amp; time (leave blank = 1 day before at 9am)</p>
         <button onclick="addOrder()" class="w-full text-white font-bold py-3 rounded-xl shadow-sm transition text-sm" style="background: var(--ink)">➕ Add order</button>
       </div>
 
-      <!-- order list -->
       <div class="bg-white p-5 rounded-2xl shadow-[0_4px_16px_rgba(42,33,27,0.05)] border border-slate-100">
         <h3 class="font-bold text-xs text-slate-400 uppercase tracking-wider mb-3">Upcoming orders</h3>
         <div id="saved-orders" class="divide-y divide-slate-100"></div>
       </div>
     </div>
 
-    <!-- ========= PRODUCTS PAGE (original) ========= -->
+    <!-- PRODUCTS -->
     <div id="products" class="page">
       <h2 class="text-2xl font-display font-semibold text-slate-900 mb-4 mt-1">Food Item Database</h2>
       <div class="bg-white p-5 rounded-2xl shadow-[0_4px_16px_rgba(42,33,27,0.05)] border border-slate-100 mb-4 space-y-3">
@@ -236,7 +195,7 @@
       </div>
     </div>
 
-    <!-- ========= SETTINGS PAGE (original) ========= -->
+    <!-- SETTINGS -->
     <div id="settings" class="page">
       <h2 class="text-2xl font-display font-semibold text-slate-900 mb-4 mt-1">Business Profile</h2>
       <div class="bg-white p-5 rounded-2xl shadow-[0_4px_16px_rgba(42,33,27,0.05)] border border-slate-100 space-y-4">
@@ -263,14 +222,8 @@
 </main>
 
 <script>
-  // ---------- global db ----------
-  let db = { 
-    products: [], 
-    orders: [],
-    settings: { name: 'Amma\'s Catering Service', details: 'Tel: 077 123 4567\nColombo, Sri Lanka', }
-  };
+  let db = { products: [], orders: [], settings: { name: 'Amma\'s Catering Service', details: 'Tel: 077 123 4567\nColombo, Sri Lanka' } };
 
-  // ---------- toasts & confirm (same) ----------
   function showToast(message, type = 'default') {
     const stack = document.getElementById('toast-stack');
     const el = document.createElement('div');
@@ -295,7 +248,6 @@
     if (_confirmResolve) { _confirmResolve(result); _confirmResolve = null; }
   }
 
-  // ---------- data persistence ----------
   function loadData() {
     const data = localStorage.getItem('catering_pwa_db');
     if(data) db = JSON.parse(data);
@@ -311,10 +263,8 @@
       document.getElementById('logo-preview').src = db.settings.logo;
       document.getElementById('logo-preview-wrap').classList.remove('hidden');
     }
-    // check for reminders (day-before)
     checkReminders();
   }
-
   function saveData() {
     localStorage.setItem('catering_pwa_db', JSON.stringify(db));
     document.getElementById('app-header-title').innerText = db.settings.name || 'Your Catering Business';
@@ -323,22 +273,13 @@
     renderSelectionLists();
     renderOrders();
   }
-
-  // ---------- header logo ----------
   function updateHeaderLogo() {
     const img = document.getElementById('header-logo');
     const emoji = document.getElementById('header-emoji');
-    if (db.settings.logo) {
-      img.src = db.settings.logo;
-      img.classList.remove('hidden');
-      emoji.classList.add('hidden');
-    } else {
-      img.classList.add('hidden');
-      emoji.classList.remove('hidden');
-    }
+    if (db.settings.logo) { img.src = db.settings.logo; img.classList.remove('hidden'); emoji.classList.add('hidden'); }
+    else { img.classList.add('hidden'); emoji.classList.remove('hidden'); }
   }
 
-  // ---------- page switch (5 pages) ----------
   let activePageId = 'invoice';
   function switchPage(pageId, btn) {
     if (pageId !== activePageId) {
@@ -348,22 +289,15 @@
       newEl.classList.remove('active-page', 'off-left');
       void newEl.offsetWidth;
       newEl.classList.remove('no-transition');
-      requestAnimationFrame(() => {
-        oldEl.classList.remove('active-page');
-        oldEl.classList.add('off-left');
-        newEl.classList.add('active-page');
-      });
+      requestAnimationFrame(() => { oldEl.classList.remove('active-page'); oldEl.classList.add('off-left'); newEl.classList.add('active-page'); });
       activePageId = pageId;
     }
-    document.querySelectorAll('.nav-btn').forEach(b => {
-      b.classList.remove('active');
-      b.style.color = '';
-    });
+    document.querySelectorAll('.nav-btn').forEach(b => { b.classList.remove('active'); b.style.color = ''; });
     btn.classList.add('active');
     btn.style.color = 'var(--paprika)';
   }
 
-  // ---------- products (same) ----------
+  // PRODUCTS
   function addProduct() {
     const nameInput = document.getElementById('p-name');
     const priceInput = document.getElementById('p-price');
@@ -371,28 +305,18 @@
     const price = parseFloat(priceInput.value);
     if(!name || !price) { showToast('Enter an item name and a price', 'error'); return; }
     db.products.push({ id: Date.now(), name, price });
-    nameInput.value = '';
-    priceInput.value = '';
+    nameInput.value = ''; priceInput.value = '';
     saveData();
     showToast(`${name} added to menu`, 'success');
   }
-
   async function deleteProduct(id) {
     const product = db.products.find(p => p.id === id);
     const ok = await askConfirm(`Remove "${product?.name}" from your menu?`);
-    if (ok) {
-      db.products = db.products.filter(p => p.id !== id);
-      saveData();
-      showToast('Item removed', 'default');
-    }
+    if (ok) { db.products = db.products.filter(p => p.id !== id); saveData(); showToast('Item removed', 'default'); }
   }
-
   function renderProducts() {
     const container = document.getElementById('saved-products');
-    if(db.products.length === 0) {
-      container.innerHTML = `<div class="text-center py-6"><p class="text-2xl mb-1">🍽️</p><p class="text-slate-400 text-xs font-medium">Your menu is empty — add your first item above.</p></div>`;
-      return;
-    }
+    if(db.products.length === 0) { container.innerHTML = `<div class="text-center py-6"><p class="text-2xl mb-1">🍽️</p><p class="text-slate-400 text-xs font-medium">Your menu is empty — add your first item above.</p></div>`; return; }
     container.innerHTML = db.products.map(p => `
       <div class="flex justify-between items-center py-3">
         <div><p class="font-semibold text-sm text-slate-800">${p.name}</p><p class="text-xs font-bold" style="color:var(--paprika)">LKR ${p.price.toFixed(2)}</p></div>
@@ -401,7 +325,7 @@
     `).join('');
   }
 
-  // ---------- logo ----------
+  // LOGO
   function handleLogo(input) {
     const file = input.files[0];
     if (!file) return;
@@ -415,24 +339,11 @@
     };
     reader.readAsDataURL(file);
   }
-  function removeLogo() {
-    db.settings.logo = '';
-    document.getElementById('logo-preview-wrap').classList.add('hidden');
-    document.getElementById('cfg-logo').value = '';
-    saveData();
-  }
-  function saveSettings() {
-    db.settings.name = document.getElementById('cfg-name').value;
-    db.settings.details = document.getElementById('cfg-details').value;
-    saveData();
-    showToast('Business profile saved', 'success');
-  }
+  function removeLogo() { db.settings.logo = ''; document.getElementById('logo-preview-wrap').classList.add('hidden'); document.getElementById('cfg-logo').value = ''; saveData(); }
+  function saveSettings() { db.settings.name = document.getElementById('cfg-name').value; db.settings.details = document.getElementById('cfg-details').value; saveData(); showToast('Business profile saved', 'success'); }
 
-  // ---------- selection lists for invoice/quote (same) ----------
-  function checkIcon() {
-    return `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-  }
-
+  // SELECTION LISTS
+  function checkIcon() { return `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }
   function renderSelectionLists() {
     const generateHTML = () => {
       if(db.products.length === 0) return `<div class="text-center py-6"><p class="text-slate-400 text-xs font-medium">Add items in the Products tab first.</p></div>`;
@@ -453,18 +364,12 @@
     document.getElementById('inv-product-list').innerHTML = generateHTML();
     document.getElementById('q-product-list').innerHTML = generateHTML();
   }
-
-  function toggleItem(card) {
-    card.classList.toggle('selected');
-    card.querySelector('.qty-stepper').classList.toggle('hidden');
-    updateTotals();
-  }
+  function toggleItem(card) { card.classList.toggle('selected'); card.querySelector('.qty-stepper').classList.toggle('hidden'); updateTotals(); }
   function stepQty(btn, delta) {
     const span = btn.parentElement.querySelector('.prod-qty');
     let val = parseInt(span.dataset.qty) + delta;
     if (val < 1) val = 1;
-    span.dataset.qty = val;
-    span.textContent = val;
+    span.dataset.qty = val; span.textContent = val;
     updateTotals();
   }
   function computeTotal(containerId) {
@@ -487,7 +392,7 @@
     document.getElementById('q-total').textContent = `LKR ${q.total.toFixed(2)}`;
   }
 
-  // ---------- PDF generation (original, unchanged) ----------
+  // PDF GENERATION
   function dataUrlToBytes(dataUrl) {
     const base64 = dataUrl.split(',')[1];
     const binary = atob(base64);
@@ -533,11 +438,7 @@
       }
       centerText(db.settings.name, yPosition, helveticaBold, 17, inkColor);
       yPosition -= 16;
-      db.settings.details.split('\n').forEach(line => {
-        if (!line.trim()) return;
-        centerText(line.trim(), yPosition, helveticaFont, 9.5, grayColor);
-        yPosition -= 13;
-      });
+      db.settings.details.split('\n').forEach(line => { if (!line.trim()) return; centerText(line.trim(), yPosition, helveticaFont, 9.5, grayColor); yPosition -= 13; });
       yPosition -= 10;
       page.drawLine({ start: { x: margin, y: yPosition }, end: { x: width - margin, y: yPosition }, strokeWidth: 1, color: brandColor });
       yPosition -= 32;
@@ -590,28 +491,53 @@
       link.click();
       document.body.removeChild(link);
       showToast(`${type} downloaded`, 'success');
-    } catch (err) {
-      console.error(err);
-      showToast('Error creating PDF — please try again', 'error');
-    }
+    } catch (err) { console.error(err); showToast('Error creating PDF — please try again', 'error'); }
   }
 
-  // ---------- ORDERS : NEW FUNCTIONALITY ----------
+  // ---------- ORDERS with custom reminder ----------
   function addOrder() {
     const client = document.getElementById('order-client').value.trim();
     const location = document.getElementById('order-location').value.trim();
     const date = document.getElementById('order-date').value;
     const shift = document.getElementById('order-shift').value;
+    const reminderDate = document.getElementById('order-reminder-date').value;
+    const reminderTime = document.getElementById('order-reminder-time').value;
+
     if(!client || !location || !date) {
       showToast('Please fill client, location and date', 'error');
       return;
     }
+
+    // Build reminder timestamp if provided, otherwise default to 1 day before at 09:00
+    let reminderTimestamp = null;
+    if (reminderDate && reminderTime) {
+      reminderTimestamp = `${reminderDate}T${reminderTime}:00`;
+    } else {
+      // default: 1 day before at 9am
+      const d = new Date(date);
+      d.setDate(d.getDate() - 1);
+      const yr = d.getFullYear();
+      const mo = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      reminderTimestamp = `${yr}-${mo}-${day}T09:00:00`;
+    }
+
+    // Validate reminder is not in the past
+    const now = new Date();
+    const remindTime = new Date(reminderTimestamp);
+    if (remindTime < now) {
+      showToast('⚠️ Reminder time is in the past. Please set a future time.', 'warning');
+      return;
+    }
+
     const order = {
       id: Date.now(),
       client,
       location,
-      date,   // yyyy-mm-dd
+      date,   // work date
       shift,
+      reminderTimestamp, // ISO string with time
+      reminded: false,
       createdAt: new Date().toISOString()
     };
     db.orders.push(order);
@@ -619,8 +545,9 @@
     document.getElementById('order-client').value = '';
     document.getElementById('order-location').value = '';
     document.getElementById('order-date').value = '';
-    showToast(`Order for ${client} added`, 'success');
-    // check if reminder should fire immediately (if date is tomorrow)
+    document.getElementById('order-reminder-date').value = '';
+    document.getElementById('order-reminder-time').value = '09:00';
+    showToast(`Order for ${client} added. Reminder set for ${new Date(reminderTimestamp).toLocaleString()}`, 'success');
     checkReminders();
   }
 
@@ -640,10 +567,10 @@
       container.innerHTML = `<div class="text-center py-6"><p class="text-2xl mb-1">📭</p><p class="text-slate-400 text-xs font-medium">No orders scheduled.</p></div>`;
       return;
     }
-    // sort by date ascending
     const sorted = [...db.orders].sort((a,b) => a.date.localeCompare(b.date));
     container.innerHTML = sorted.map(o => {
       const shiftBadge = `badge-${o.shift.toLowerCase()}`;
+      const remindDate = o.reminderTimestamp ? new Date(o.reminderTimestamp).toLocaleString() : 'default (1 day prior 9am)';
       return `
         <div class="order-card flex justify-between items-start py-3 gap-2">
           <div class="flex-1">
@@ -652,6 +579,7 @@
             <div class="flex flex-wrap items-center gap-1 mt-1">
               <span class="text-xs font-mono bg-slate-100 px-2 py-0.5 rounded">${o.date}</span>
               <span class="text-xs px-2 py-0.5 rounded-full font-medium ${shiftBadge}">${o.shift}</span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">⏰ ${remindDate}</span>
             </div>
           </div>
           <button onclick="deleteOrder(${o.id})" class="text-red-500 font-bold text-xs bg-red-50 px-2.5 py-1.5 rounded-lg transition active:scale-95">✕</button>
@@ -660,35 +588,32 @@
     }).join('');
   }
 
-  // ---------- REMINDER SYSTEM (day-before) ----------
+  // ---------- REMINDER SYSTEM with custom timestamps ----------
   function checkReminders() {
     if(!db.orders || db.orders.length === 0) return;
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    const now = new Date();
 
     db.orders.forEach(order => {
-      if(order.date === tomorrowStr) {
-        // check if we already notified (flag)
-        if(order.reminded) return;
-        const msg = `⏰ Reminder: "${order.client}" tomorrow (${order.shift}) at ${order.location}`;
+      if (order.reminded) return;
+      if (!order.reminderTimestamp) return;
+
+      const remindTime = new Date(order.reminderTimestamp);
+      // If reminder time has passed, fire notification
+      if (now >= remindTime) {
+        const msg = `⏰ REMINDER: "${order.client}" on ${order.date} (${order.shift}) at ${order.location}`;
         showToast(msg, 'success');
-        // mark as reminded so it doesn't fire again
         order.reminded = true;
         saveData();
       }
     });
   }
 
-  // check reminders on load and every 60s
-  setInterval(checkReminders, 60000);
+  // Check every 30 seconds
+  setInterval(checkReminders, 30000);
 
-  // ---------- init ----------
   window.onload = loadData;
 
-  // expose functions globally for inline onclick
+  // Expose functions globally
   window.switchPage = switchPage;
   window.addProduct = addProduct;
   window.deleteProduct = deleteProduct;
